@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drag and Drop Icons with Canvas</title>
+    <style>
+    body, html {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+    canvas {
+        display: block;
+        background-image: url('images/background/background1.jpg'); /* 替换为您的图片路径 */
+        background-size: cover;
+        background-repeat: no-repeat;
+    }
+</style>
+
+</head>
+<canvas id="iconCanvas" style="border: 1px solid #000;"></canvas>
+
+    <script>
+        const canvas = document.getElementById('iconCanvas');
+        const ctx = canvas.getContext('2d');
+        const icons = [];
+        let draggingIcon = null;
+        let copiedIcon = null;
+
+        function loadImage(src) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = src;
+            });
+        }
+
+        async function init() {
+            // Set canvas size to fill the window
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            // Load icons
+            const iconSources = [
+    'images/icons/A1.png', 'images/icons/A2.png', 'images/icons/A3.png', 'images/icons/A4.png',
+    'images/icons/B1.png', 'images/icons/B2.png', 'images/icons/B3.png', 'images/icons/B4.png',
+    'images/icons/C1.png', 'images/icons/C2.png', 'images/icons/C3.png', 'images/icons/C4.png',
+    'images/icons/D1.png', 'images/icons/D2.png', 'images/icons/D3.png', 'images/icons/D4.png',
+];
+
+
+
+            const iconWidth = 50;
+            const iconHeight = 50;
+            const numCols = 16;
+            const numRows = 1;
+            const spacingX = (canvas.width - iconWidth * numCols) / (numCols + 1);
+            const spacingYTop = 50; // Top spacing
+            const spacingYBottom = 50; // Bottom spacing
+
+            let x = spacingX;
+            let y = canvas.height - iconHeight - spacingYBottom; // Set y to be at the bottom
+
+            for (const src of iconSources) {
+                const img = await loadImage(src);
+                icons.push({ img, x, y, width: iconWidth, height: iconHeight });
+
+                x += iconWidth + spacingX;
+                if (x + iconWidth > canvas.width) {
+                    x = spacingX;
+                    y -= iconHeight + spacingYBottom; // Move y position upward for the next row
+                }
+            }
+
+            window.addEventListener('resize', resizeCanvas);
+            canvas.addEventListener('mousedown', onMouseDown);
+            canvas.addEventListener('mousemove', onMouseMove);
+            canvas.addEventListener('mouseup', onMouseUp);
+            canvas.addEventListener('contextmenu', onContextMenu);
+
+            drawCanvas();
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            drawCanvas();
+        }
+        function drawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (const icon of icons) {
+                ctx.drawImage(icon.img, icon.x, icon.y, icon.width, icon.height);
+            }
+
+            if (copiedIcon) {
+                ctx.drawImage(copiedIcon.img, copiedIcon.x, copiedIcon.y, copiedIcon.width, copiedIcon.height);
+            }
+
+            requestAnimationFrame(drawCanvas);
+        }
+
+        // 在 onMouseDown 函数中修改右键点击的逻辑
+        // 修改 onMouseDown 函数
+        function onMouseDown(event) {
+            const x = event.clientX - canvas.getBoundingClientRect().left;
+            const y = event.clientY - canvas.getBoundingClientRect().top;
+
+            for (let i = 0; i < icons.length; i++) {
+                const icon = icons[i];
+                if (x >= icon.x && x <= icon.x + icon.width &&
+                    y >= icon.y && y <= icon.y + icon.height) {
+                    if (event.button === 0) {
+                        copiedIcon = { ...icon }; // 复制图标
+                        copiedIcon.isDragging = true; // 设置为可拖拽状态
+
+                        // 记录用户点击的图标编号（0~15）
+                        const clickedIconIndex = i;
+                        const eventData = {
+                            eventNumber: clickedIconIndex + 1,
+                        };
+
+                        // 打包成 JSON 格式并发送给后端
+                        const jsonData = JSON.stringify(eventData);
+                        sendToBackend(jsonData);
+                    }
+                    break;
+                }
+            }
+        }
+
+        // 修改 onMouseMove 函数
+        function onMouseMove(event) {
+            if (copiedIcon && copiedIcon.isDragging) {
+                copiedIcon.x = event.clientX - canvas.getBoundingClientRect().left - copiedIcon.width / 2;
+                copiedIcon.y = event.clientY - canvas.getBoundingClientRect().top - copiedIcon.height / 2;
+            }
+        }
+
+        // 修改 onMouseUp 函数 *
+        function onMouseUp(event) {
+            if (copiedIcon && copiedIcon.isDragging) {
+                copiedIcon.isDragging = false; // 停止拖拽状态
+                icons.push({ ...copiedIcon }); // 添加图标到画布
+                copiedIcon = null; // 清除复制的图标
+            }
+        }
+
+        function onContextMenu(event) {
+            event.preventDefault();
+            const menu = document.createElement('div');
+            menu.className = 'context-menu';
+            menu.style.left = `${event.clientX}px`;
+            menu.style.top = `${event.clientY}px`;
+
+            const pasteOption = document.createElement('div');
+            pasteOption.textContent = 'Paste';
+            pasteOption.className = 'context-option';
+            pasteOption.addEventListener('click', () => {
+                if (copiedIcon) {
+                    copiedIcon.x = event.clientX - canvas.getBoundingClientRect().left - copiedIcon.width / 2;
+                    copiedIcon.y = event.clientY - canvas.getBoundingClientRect().top - copiedIcon.height / 2;
+                    icons.push({ ...copiedIcon });
+                    copiedIcon = null;
+                }
+            });
+
+            const cancelOption = document.createElement('div');
+            cancelOption.textContent = 'Cancel';
+            cancelOption.className = 'context-option';
+            cancelOption.addEventListener('click', () => {
+                copiedIcon = null;
+            });
+
+            menu.appendChild(pasteOption);
+            menu.appendChild(cancelOption);
+
+            document.body.appendChild(menu);
+
+            document.addEventListener('click', () => {
+                menu.remove();
+            });
+        }
+
+ function sendToBackend(jsonData) {
+    fetch('http://localhost:63342/record-click', { // 后端的完整地址
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: jsonData,
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log(data.message);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+
+
+
+        init();
+    </script>
+</body>
+</html>

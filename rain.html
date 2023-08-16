@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Rain Effect</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .raindrop {
+            position: absolute;
+            width: 2px;
+            height: 15px;
+            background-color: #00f;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        const numDrops = 100; // 要生成的雨滴数量
+
+        for (let i = 0; i < numDrops; i++) {
+            const drop = document.createElement('div');
+            drop.className = 'raindrop';
+            document.body.appendChild(drop);
+
+            // 随机位置和速度
+            const startX = Math.random() * window.innerWidth;
+            const startY = Math.random() * window.innerHeight;
+            const speed = 2 + Math.random() * 5;
+
+            drop.style.left = startX + 'px';
+            drop.style.top = startY + 'px';
+
+            // 每个雨滴的动画循环
+            function animate() {
+                startY += speed;
+                drop.style.top = startY + 'px';
+
+                if (startY > window.innerHeight) {
+                    startY = -15;
+                    drop.style.left = Math.random() * window.innerWidth + 'px';
+                }
+
+                requestAnimationFrame(animate);
+            }
+
+            animate();
+        }
+    </script>
+</body>
+</html>
